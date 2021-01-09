@@ -1,18 +1,21 @@
 import * as fse from 'fs-extra'
 import * as path from 'path'
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios'
 import * as cheerio from 'cheerio'
 import xlsx from 'node-xlsx';
 import * as moment from 'moment'
 import 'dotenv/config'
 
-const outputFolder = process.env.OUTPUT_FOLDER || path.resolve(__dirname, './data/exec')
-const outputPath = path.resolve(__dirname, './data', outputFolder)
-const filename = process.env.FILENAME || 'exec'
-const fileTitle = process.env.FILE_TITLE || 'my exec'
+const port = process.env.PORT
+const outputFolder = process.env.OUTPUT_FOLDER || path.resolve(__dirname, '../data/excel')
+const outputPath = path.resolve(__dirname, '../data', outputFolder)
+const filename = process.env.FILENAME || 'excel'
+const fileTitle = process.env.FILE_TITLE || 'my excel'
 @Injectable()
 export class ProfitsService {
+    private readonly logger = new Logger(ProfitsService.name);
+
     constructor() {
         this.init()
     }
@@ -24,9 +27,12 @@ export class ProfitsService {
     async crawlRequest() {
         const url = 'http://quotes.money.163.com/f10/zycwzb_600519.html#01c01'
         axios.get(url).then(res => {
+            this.logger.log('开始爬取数据...');
             const data = this.loadHtmlContent(res.data)
+            this.logger.log('数据爬取完成。。。');
             return data
         }).then(data => {
+            this.logger.log('开始导出数据为excel文件...');
             this.exportToCsv(data)
         })
     }
@@ -70,7 +76,18 @@ export class ProfitsService {
        fse.outputFile(
           outputFile,
           bufferData,
-          'utf-8'
+          'utf-8',
+          (err) => {
+             if(!err) {
+               this.logger.log('文件生成成功')
+               this.logger.log(`文件生成地址：${outputFile}`)
+               this.logger.log(
+                `点击 http://127.0.0.1:${port}/data/${outputFolder}/${encodeURIComponent(
+                   execName,
+                )} 进行下载`,
+              );
+             }
+          }
        )
     }
 }
