@@ -12,20 +12,23 @@ const outputFolder = process.env.OUTPUT_FOLDER || path.resolve(__dirname, '../da
 const outputPath = path.resolve(__dirname, '../data', outputFolder)
 const filename = process.env.FILENAME || 'excel'
 const fileTitle = process.env.FILE_TITLE || 'my excel'
+const productDataName = process.env.DATA_NAME
+const productColTitle = process.env.DATA_COL_TITLE
 @Injectable()
 export class ProfitsService {
     private readonly logger = new Logger(ProfitsService.name);
+    private url = 'http://quotes.money.163.com/f10/zycwzb_600519.html#01c01'
 
     constructor() {
-        this.init()
+       this.init()
     }
 
     init() {
-      this.crawlRequest()
+        this.crawlRequest()
     }
 
     async crawlRequest() {
-        const url = 'http://quotes.money.163.com/f10/zycwzb_600519.html#01c01'
+        const url = this.url
         axios.get(url).then(res => {
             this.logger.log('开始爬取数据...');
             const data = this.loadHtmlContent(res.data)
@@ -45,7 +48,16 @@ export class ProfitsService {
        $ths.each((i, elem) => {
         theadData.push($(elem).text())
        })
-       const $profitsTr = $table.find('tbody tr').eq(11)
+       // 根据标题获取数据
+       const $sideTable = $('.limit_sale').eq(0)
+       const $sideTableTr = $sideTable.find('tbody tr')
+       const $tr = $(`.limit_sale tbody tr td:contains(${productDataName})`).parent()
+       const index = $sideTableTr.index($tr)
+       if (index <= -1) {
+           this.logger.log('数据标题不存在')
+           return
+       }
+       const $profitsTr = $table.find('tbody tr').eq(index + 1)
        const $tds = $profitsTr.find('td')
        const profitsData = []
        $tds.each((i, elem) => {
@@ -59,8 +71,8 @@ export class ProfitsService {
 
     exportToCsv(data) {
        const { theadData,  tbodyData} = data
-       const col1 = '报告日期'
-       const col2 = '净利润(扣除非经常性损益后)(万元)'
+       const col1 = productColTitle
+       const col2 = productDataName
        const bufferData = xlsx.build([
            {
                name: fileTitle,
